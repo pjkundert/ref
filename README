@@ -1,0 +1,9 @@
+This directory contains the Enbridge REF Reference Counting Pointer Framework.
+
+    The Enbridge REF Framework is free software.  See the file COPYING
+for copying permission.  See the file INSTALL for installation
+instructions.
+
+    REF was developed at Enbridge Pipelines Inc. by Perry Kundert.
+Please forward any questions, suggestions or patches to
+<perry.kundert@enbridge.com>, or <perry@kundert.ca>.

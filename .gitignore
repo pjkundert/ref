@@ -1,0 +1,6 @@
+*.o
+*.a
+*~
+.svn
+ref-test
+ref-test-fast

@@ -1,0 +1,375 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 1.1.0  (Linux)">
+	<META NAME="CREATED" CONTENT="20040223;14244600">
+	<META NAME="CHANGED" CONTENT="16010101;0">
+	<STYLE>
+	<!--
+		@page { size: 8.5in 11in }
+		P.western { font-family: "Arial", sans-serif }
+		A { font-family: "Arial", sans-serif }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-GB" BGCOLOR="#ffffff" DIR="LTR">
+
+<P CLASS="western"><FONT SIZE=6>
+
+The Enbridge Inc. &quot;REF&quot; C++ Reference Counting Pointer
+Framework
+
+</FONT></P>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+REF provides much of the utility of automatic Garbage Collection,
+without giving up the C/C++ pointer semantics and efficiency you are
+used to, and without the non-deterministic overhead associated with
+most GC schemes.
+
+</FONT></P>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+Unlike other C++ Reference Counting Pointer frameworks, REF:
+
+</FONT></P>
+<UL>
+	<LI><P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+	Requires no addition compilation or linkage to use.  It
+	is implemented in a single standard C++ header file.
+
+	</FONT></P>
+	<LI><P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+	Low size overhead.  A ref::ptr&lt;T&gt; implements
+	ref::ptr_tiny&lt;T&gt;, and is the same size as a T *, except
+	for one small shared reference counter object
+	(containing a C++ virtual table pointer, a T * pointer, and an
+	integer) allocated the first time a dynamically allocated T
+	object is referenced by a ref::ptr&lt;T&gt;.  For improved
+	efficiency, the reference counter can be easily added to the
+	object itself, and ref::ptr automatically detects and uses it
+	instead of allocating one.  Adding the ref::counter requires 3
+	lines of code, or the use of a template at object allocation
+	time.  A ref::ptr_fast&lt;T&gt; is the size of 2 pointers, but
+	is 100% as fast as a normal pointer for dereferencing.
+
+	</FONT></P>
+	<LI><P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+	Low speed overhead.  Access to the object involves 1 extra
+	virtual method invocation in addition to the normal pointer
+	dereference, and is similar whether you've added a
+	ref::counter to the object, or are using the automatically
+	allocated one.  Therefore, in most applications other than
+	tight loops comprising millions of iterations accessing
+	non-virtual methods or directly accessing the data members of
+	the object, the ref::ptr&lt;T&gt; may be interchanged for a
+	&lt;T *&gt;.  Otherwise, simply dereference the
+	ref::ptr&lt;T&gt; into a temporary variable to type &lt;T
+	&amp;&gt;, and use that in your central loop.  Or, substitute
+	a ref::ptr_fast&lt;T&gt; in speed-critical loops.
+
+	</FONT></P>
+	<LI><P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+	Maintains almost all normal C/C++ pointer semantics.  For
+	example, both ref::ptr&lt;Base&gt; and ref::ptr&lt;Derived&gt;
+	can reference the same underlying object of class Derived, and
+	all the correct pointer conversions are used.
+
+	</FONT></P>
+	<LI><P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+	Standard Template Library (STL) C++ Container friendly.
+	Particularly useful when managing containers of dynamic
+	objects.  As soon as the last container forgets about a
+	particular object, it auto-destructs!  Imagine doing arbitrary
+	std::set, std::map, or std::deque operations on containers of
+	pointers to arbitrary objects, and never having to worry about
+	deleting the objects when the containers are done with them.
+	When they disappear from a std::set after a set operation, or
+	when a std::map goes out of scope, the objects just disappear
+	(unless some other ref::ptr still holds a reference.)
+
+	</FONT></P>
+</UL>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+One perceived drawback that ref::ptr's have relative to full-blown
+Garbage Collection, is that co-referencing objects (objects that
+retain references to each-other), can prevent auto-destruction.  This
+is usually easily avoidable.  If you have objects containing
+ref::ptr's to other objects, that eventually point back to the
+original object, just make sure that one object breaks the
+&quot;loop&quot; of linkage when no longer required; they will then
+auto-destruct as appropriate.  Otherwise, ref::ptr's seem highly
+efficient compared to most GC algorithms, are very safe and easy to
+use, and yield virtually all of the simplicity benefits of GC, without
+sacrificing space- or time- determinism.
+
+</P>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+If your code must be very space- and time-efficient, or has
+determinism requirements that cannot be met with the GC schemes
+available to you, then REF is an excellent choice.  The space/time
+efficiency tradeoff of using ref::ptr&lt;T&gt;/ref::ptr_tiny&lt;T&gt; (
+1 x sizeof( T * ), but deference requires 1 virtual method invocation)
+vs. ref::ptr_fast&lt;T&gt; ( 2 x sizeof( T * ), but dereference is
+inlined) is totally within your control (see ref/ref.H).  Both the
+&quot;small&quot; and &quot;fast&quot; versions are interchangable and
+assignable.
+
+</P>
+
+<P CLASS="western"><FONT SIZE=5>
+
+<B>How-To</B>
+
+</FONT></P>
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+Here is an example of 3 ref::ptr&lt;int&gt;'s, managing a couple of
+dynamically allocated int objects.  In this example, since the new
+&lt;int&gt; objects don't have their own ref::counter built in,
+ref::ptr&lt;int&gt; allocates one (shared by all ref::ptr's sharing
+the object).
+
+</FONT></P>
+
+<PRE STYLE="margin-left: 0.79in">
+
+#include &lt;ref&gt;
+
+ref::ptr&lt;int&gt;		a( new int );		// new int 'A' on heap, 'a' holds ref::counter of 1 to 'A'
+ref::ptr&lt;int&gt;		b;			// 'b's ref::counter is 0, and it's pointer ( *b, b-&gt;, ...) is 0.
+b	= new int;				// new int 'B' on heap; 'b's ref::counter is 1
+ref::ptr&lt;int&gt;		c;
+c 	= b;					// 'b' and 'c' share ref::counter of 2 to 'B'
+a	= c;					// 'A' freed; 'a', 'b' and 'c' share ref::counter of 3 to 'B'
+</PRE>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+Basically, just ensure that any dynamically allocated &lt;object&gt;
+is immediately assigned to a ref::ptr&lt;object&gt;.  Then, make sure
+you only assign it between other ref::ptr's.  When the last ref::ptr
+referencing it is assigned something else, the object will
+auto-destruct.  Use the ref::ptr&lt;object&gt; as you would an (object
+*).
+
+</FONT></P>
+
+<P CLASS="western" ALIGN=LEFT>
+
+If you have control over the definition of a class, avoid allocating a
+dynamic ref::counter for each new object of the class by adding a
+built-in ref::counter: just add ref::counter&lt;your_class&gt; as
+a(nother) base class, and one virtual method:
+ 
+<PRE STYLE="margin-left: 0.79in">
+
+     class your_class 
+         : public ref::counter&lt;your_class&gt {
+         virtual your_class *__ref_getptr()  { return this; }
+         /* ... the rest of your_class's declaration ... */
+     }
+
+</PRE>
+
+To add a ref::counter to a class that you do NOT have control of
+(named &quot;object&quot;, for example), derive a new class
+&lt;rcobject&gt; from the base class &lt;object&gt; and also the
+ref::counter&lt;rcobject&gt; base class, and add one new virtual
+method (the ref::counter methods must be virtual, in order to maintain
+proper pointer conversion and auto-destruction).  This new
+&lt;rcobject&gt; is trivially convertible to &lt;object&gt;, and has a
+built-in ref::counter, avoiding the additional dynamic allocation for
+each new &lt;object&gt;:
+
+</P>
+
+<PRE STYLE="margin-left: 0.79in">
+
+class object { /* ... */ ; };
+
+// Make an &quot;object&quot; having its own ref::counter; ref::ptr will use it..
+class rcobject
+  : public object
+  , public ref::counter&lt;rcobject&gt; {
+    virtual rcobject *__ref_getptr()  { return this; } // dereference the object
+    /* ... */
+};
+ref::ptr&lt;rcobject&gt;	r = new rcobject;
+
+</PRE>
+
+<P CLASS="western" ALIGN=LEFT><FONT SIZE=3>
+
+An alternative method for adding a ref::counter to &quot;object&quot; is to use the ref::dyn&lt;object&gt; template:
+
+</FONT></P>
+<PRE STYLE="margin-left: 0.79in">
+
+// Add reference-counting and self-destruction to some other object
+ref::ptr&lt;ref::dyn&lt;object&gt;&nbsp;&gt; o = new ref::dyn&lt;object&gt;	
+
+</PRE>
+
+<P CLASS="western"><FONT SIZE=3>
+
+In both of these cases, the ref::ptr's will automatically detect and
+use the included ref::counter, instead of allocating one for each
+shared object.  Use of ref::ptr's will be almost 100% as
+space-efficient as using a raw pointer to the object (one &lt;int&gt;,
+the reference counter, will be added to the size of the object)!  No
+other dynamically or statically allocated objects of any kind are
+required for any housekeeping.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=5>
+<B>Other Implementations</B>
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+The implementation of boost::shared_ptr&lt;T&gt; is comparable to
+ref::ptr_fast&lt;T&gt;.  The size of each boost::share_ptr is 2 x
+sizeof( T * ), dereferencing is inlined (no virtual method invocations
+required), and a shared_counter is dynamically allocated for each
+group of shared_ptr&lt;T&gt;'s referencing a specific dynamically
+allocated T object.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+The benefits of REF are several.  First, the size of ref::ptr&lt;T&gt;
+is 1 x sizeof( T * ), at the cost of 1 virtual method invocation per
+dereference.  So, if your application stores many, many pointers, then
+REF will cut your pointer storage space requirements by 50%.  There is
+no equivalent in boost, that I am aware of.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+Second, it appears that boost::shared_ptr <I>always</I> dynamically
+allocates a shared_counter object, whenever one (or more) smart_ptr's
+share a &lt;T&gt;.  If your program creates many, many small T's, then
+the overhead of shared_counter allocated for each one will be
+significant (potentially doubling your dynamic memory requirements).
+Adding a ref::counter&lt;T&gt; as a base class of T will only increase
+the size of T by 1 integer and a virtual table pointer (the shared
+reference counter object).  No other objects are then required for
+reference counting.  Again, there appears to be no equivalent in
+boost.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+Third, ref::ptr's are not thread-safe, and so do not have the overhead
+of thread-safety built into each reference increment/decrement.  At
+first this may not seem to be a benefit, but I believe that it is.
+The details of transparently sharing dynamically allocated
+reference-counted storage between threads have proven too great for
+several widely supported implementations of std::string, produced by
+people much smarter than me, and all have been abandoned.  Therefore,
+you may <I>use</I> ref::ptr's in multiple threads without protection,
+but <B><I>do not</I></B> assign or copy to/from them!  Remember,
+copying one ref::ptr&lt;T&gt; to another involves a <I>write</I> to
+the shared reference counter, and destruction of the copy later
+involves another write!  If you do copy, then all accesses to all
+copies must be encompassed by mutual exclusion intrinsics.  In other
+words, treat them like any other shared object in the multi-threaded
+environment.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=5>
+<B>Examples</B>
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+See the unit tests <A HREF="../ref-test.C">ref-test.C</A> for many more examples.
+You can run the unit tests, and see their output
+<A HREF="http://enbridge.kundert.ca/cgi-bin/ref/ref-test">here</A>
+(the REF unit tests are implemented using
+<A HREF="http://enbridge.kundert.ca/cut/doc">CUT</A>)
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+Define the preprocessor symbol REF_PTR_DEREF_FAST (see the GNU Make
+file <A HREF="../GNUmakefile">GNUmakefile</A> for an example ) to
+globally force ref::ptr&lt;T&gt; to implement ref::ptr_fast&lt;T&gt;,
+in applications where it is known in advance that speed is more
+important than space, all source code is available, and where compiled
+modules will never be shared outside of the compiled application.
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+Define the preprocessor symbol REF_PTR_COMPARE (see the GNU Make file
+<A HREF="../GNUmakefile">GNUmakefile</A> for an example ) to define
+functions that automatically compare ref::ptr&lt;T&gt; by their
+underlying pointers.  This allows use of ref::ptr's as keys in sorted
+containers.  If you wish to define such comparison methods yourself,
+you must put them in the namespace 'ref', or they will be hidden
+(probably by too many levels of template type deduction.)
+
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=5>
+<B>Download</B>
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+The latest version is always available in the ref-#.#.#.tgz file,
+<A HREF="http://enbridge.kundert.ca/ref/">here</A>
+</FONT></P>
+
+<P CLASS="western"><FONT SIZE=3>
+
+Copyright (C) 2004,2005 Enbridge Inc.
+
+</FONT></P>
+<P CLASS="western"><FONT SIZE=3>
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+</FONT></P>
+<P CLASS="western"><FONT SIZE=3>
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+</FONT></P>
+<P CLASS="western"><FONT SIZE=3>
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+</FONT></P> 
+
+</BODY>
+</HTML>
